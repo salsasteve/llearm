@@ -26,41 +26,69 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant, Ticker, Timer};
 use esp_backtrace as _;
 use esp_hal::{
-    prelude::*,
+    gpio::AnyPin,
     interrupt::{software::SoftwareInterruptControl, Priority},
-    timer::{timg::TimerGroup, AnyTimer},
+    peripherals::RMT,
+    prelude::*,
     rmt::Rmt,
+    timer::{timg::TimerGroup, AnyTimer},
 };
 use esp_hal_embassy::InterruptExecutor;
-use static_cell::StaticCell;
 use esp_hal_smartled::{smartLedBuffer, SmartLedsAdapter};
 use smart_leds::{
-    brightness,
-    gamma,
-    hsv::{hsv2rgb, Hsv},
-    SmartLedsWrite,
+    brightness, gamma, hsv::{hsv2rgb, Hsv}, SmartLedsWrite
 };
+use static_cell::StaticCell;
 
-/// Periodically print something.
-#[embassy_executor::task]
-async fn high_prio() {
-    info!("Starting high_prio()");
-    let mut ticker = Ticker::every(Duration::from_secs(1));
-    loop {
-        info!("High priority ticks");
-        ticker.next().await;
+fn hue_to_color_name(hue: u8) -> &'static str {
+    match hue {
+        0..=10 => "red",
+        11..=40 => "orange",
+        41..=70 => "yellow",
+        71..=100 => "green",
+        101..=130 => "cyan",
+        131..=160 => "blue",
+        161..=190 => "purple",
+        191..=220 => "magenta",
+        221..=255 => "red", 
     }
 }
 
-/// Simulates some blocking (badly behaving) task.
+#[embassy_executor::task]
+async fn high_prio(led: AnyPin, peripheral_rmt: RMT) {
+    info!("Starting high_prio()");
+    let mut ticker = Ticker::every(Duration::from_secs(1));
+    let rmt = Rmt::new(peripheral_rmt, 80.MHz()).unwrap();
+
+    let rmt_buffer = smartLedBuffer!(1);
+    let mut led = SmartLedsAdapter::new(rmt.channel0, led, rmt_buffer);
+
+    let mut color = Hsv {
+        hue: 0,
+        sat: 255,
+        val: 255,
+    };
+    let mut data;
+    loop {
+        // Iterate over the rainbow!
+        for hue in (0..=255).step_by(4){
+            color.hue = hue;
+            data = [hsv2rgb(color)];
+            led.write(brightness(gamma(data.iter().cloned()), 50))
+                .unwrap();
+            let color_name = hue_to_color_name(hue);
+            info!("Setting color to {}", color_name);
+            ticker.next().await;
+        }
+    }
+}
+
 #[embassy_executor::task]
 async fn low_prio_blocking() {
     info!("Starting low-priority task that isn't actually async");
     loop {
-        info!("Doing some long and complicated calculation");
         let start = Instant::now();
         while start.elapsed() < Duration::from_secs(5) {}
-        info!("Calculation finished");
         Timer::after(Duration::from_secs(5)).await;
     }
 }
@@ -71,7 +99,6 @@ async fn low_prio_async() {
     info!("Starting low-priority task that will not be able to run while the blocking task is running");
     let mut ticker = Ticker::every(Duration::from_secs(1));
     loop {
-        info!("Low priority ticks");
         ticker.next().await;
     }
 }
@@ -97,42 +124,18 @@ async fn main(low_prio_spawner: Spawner) {
     let executor = EXECUTOR.init(executor);
 
     let spawner = executor.start(Priority::Priority3);
-    // spawner.must_spawn(high_prio());
+    let rgb_48 = peripherals.GPIO48;
+    let rmt_pref = peripherals.RMT;
 
-    // info!("Spawning low-priority tasks");
-    // low_prio_spawner.must_spawn(low_prio_async());
-    // low_prio_spawner.must_spawn(low_prio_blocking());
-    let led = peripherals.GPIO48;
+    info!("Spawning low-priority tasks");
+    low_prio_spawner.must_spawn(low_prio_async());
+    low_prio_spawner.must_spawn(low_prio_blocking());
 
-    let rmt = Rmt::new(peripherals.RMT, 80.MHz()).unwrap();
-
-    // We use one of the RMT channels to instantiate a `SmartLedsAdapter` which can
-    // be used directly with all `smart_led` implementations
-    let rmt_buffer = smartLedBuffer!(1);
-    let mut led = SmartLedsAdapter::new(rmt.channel0, led, rmt_buffer);
-
-    let mut color = Hsv {
-        hue: 0,
-        sat: 255,
-        val: 255,
-    };
-    let mut data;
+    spawner.must_spawn(high_prio(rgb_48.into(), rmt_pref));
 
     spawner.spawn(low_prio_async()).ok();
 
     loop {
-        // Iterate over the rainbow!
-        for hue in 0..=255 {
-            color.hue = hue;
-            // Convert from the HSV color space (where we can easily transition from one
-            // color to the other) to the RGB color space that we can then send to the LED
-            data = [hsv2rgb(color)];
-            // When sending to the LED, we do a gamma correction first (see smart_leds
-            // documentation for details) and then limit the brightness to 10 out of 255 so
-            // that the output it's not too bright.
-            led.write(brightness(gamma(data.iter().cloned()), 10))
-                .unwrap();
-            Timer::after(Duration::from_millis(20)).await;
-        }
+        Timer::after(Duration::from_millis(20)).await;
     }
 }

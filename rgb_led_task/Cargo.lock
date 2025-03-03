@@ -970,31 +970,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "llearm"
-version = "0.1.0"
-dependencies = [
- "bleps",
- "cfg-if",
- "critical-section",
- "defmt",
- "defmt-rtt",
- "embassy-executor",
- "embassy-time",
- "embedded-io",
- "embedded-io-async",
- "esp-alloc",
- "esp-backtrace",
- "esp-hal",
- "esp-hal-embassy",
- "esp-hal-smartled",
- "esp-wifi",
- "heapless",
- "smart-leds",
- "smoltcp",
- "static_cell",
-]
-
-[[package]]
 name = "lock_api"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1224,6 +1199,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "57397d16646700483b67d2dd6511d79318f9d057fdbd21a4066aeac8b41d310a"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "rgb_led_task"
+version = "0.1.0"
+dependencies = [
+ "bleps",
+ "cfg-if",
+ "critical-section",
+ "defmt",
+ "defmt-rtt",
+ "embassy-executor",
+ "embassy-time",
+ "embedded-io",
+ "embedded-io-async",
+ "esp-alloc",
+ "esp-backtrace",
+ "esp-hal",
+ "esp-hal-embassy",
+ "esp-hal-smartled",
+ "esp-wifi",
+ "heapless",
+ "smart-leds",
+ "smoltcp",
+ "static_cell",
 ]
 
 [[package]]
