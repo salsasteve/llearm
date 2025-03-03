@@ -8,11 +8,6 @@ This project demonstrates a simple rainbow effect on a WS2812B LED (SmartLED) co
 *   A WS2812B LED (NeoPixel, SmartLED) - tested with a single LED.  
 *   Jumper wires to connect the LED to the ESP32-S3.
 
-## Connections
-
-*   **ESP32-S3 3.3V** to **WS2812B VCC**
-*   **ESP32-S3 GND** to **WS2812B GND**
-*   **ESP32-S3 GPIO48** to **WS2812B Data In**
 
 ## Software Requirements
 
