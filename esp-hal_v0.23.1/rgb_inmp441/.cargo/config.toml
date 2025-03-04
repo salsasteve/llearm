@@ -1,0 +1,21 @@
+[target.xtensa-esp32s3-none-elf]
+runner = "probe-rs run --chip=esp32s3"
+
+[env]
+DEFMT_LOG="info"
+SSID = "SSID"
+PASSWORD = "PASSWORD"
+STATIC_IP = "1.1.1.1 "
+GATEWAY_IP = "1.1.1.1"
+HOST_IP = "1.1.1.1"
+
+[build]
+rustflags = [
+  "-C", "link-arg=-nostartfiles",
+]
+
+target = "xtensa-esp32s3-none-elf"
+
+
+[unstable]
+build-std = ["alloc", "core"]
